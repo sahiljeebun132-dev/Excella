@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>EXCELLA Launcher</title>
+<style>
+body{margin:0;padding:0;background:#020810;color:#00d4ff;font-family:monospace;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.title{font-size:42px;font-weight:900;letter-spacing:14px;text-shadow:0 0 30px #00d4ff;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+.sub{font-size:11px;letter-spacing:4px;color:#7ab8d4;margin-top:14px;opacity:.7}
+.bar-wrap{width:280px;height:2px;background:#00d4ff22;margin-top:30px;overflow:hidden}
+.bar{height:100%;background:linear-gradient(90deg,#0055ff,#00d4ff);box-shadow:0 0 8px #00d4ff;animation:load 1.5s ease infinite}
+@keyframes load{0%{width:0;margin-left:0}50%{width:100%;margin-left:0}100%{width:0;margin-left:100%}}
+.log{font-size:9px;color:#7ab8d4;opacity:.5;margin-top:18px;letter-spacing:2px;text-align:center;line-height:2}
+</style>
+</head>
+<body>
+  <div class="title">EXCELLA</div>
+  <div class="sub">SYNCING WITH GITHUB...</div>
+  <div class="bar-wrap"><div class="bar"></div></div>
+  <div class="log">
+    CHECKING FOR UPDATES...<br>
+    FETCHING LATEST VERSION...<br>
+    LAUNCHING...
+  </div>
+<script>
+  // Always redirect to the latest GitHub Pages version
+  setTimeout(() => {
+    window.location.href = 'https://sahiljeebun132-dev.github.io/Excella/excella.html?t=' + Date.now();
+  }, 1500);
+</script>
+</body>
+</html>

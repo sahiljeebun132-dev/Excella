@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXCELLA</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --cyan: #00d4ff;
+  --cyan-dim: #00d4ff28;
+  --cyan-glow: #00d4ffaa;
+  --cyan-soft: #00d4ff12;
+  --blue: #0055ff;
+  --blue2: #4499ff;
+  --gold: #ffcc00;
+  --gold-dim: #ffcc0022;
+  --red: #ff3344;
+  --red-dim: #ff334422;
+  --green: #00ff88;
+  --green-dim: #00ff8822;
+  --bg: #020810;
+  --bg2: #030d1a;
+  --panel: #030f1c;
+  --panel2: #041525;
+  --text: #7ab8d4;
+  --text-b: #d0eeff;
+  --text-d: #2a5470;
+  --border: #00d4ff15;
+  --border2: #00d4ff2e;
+  --border3: #00d4ff55;
+  --grid: #00d4ff07;
+  --fhud: 'Orbitron', monospace;
+  --fbody: 'Rajdhani', sans-serif;
+  --fmono: 'Share Tech Mono', monospace;
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--fbody);user-select:none}
+
+/* GRID BG */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:38px 38px;
+}
+.glow-t{position:fixed;top:-140px;left:50%;transform:translateX(-50%);width:1000px;height:320px;background:radial-gradient(ellipse,#00d4ff09 0%,transparent 70%);pointer-events:none;z-index:0}
+.glow-b{position:fixed;bottom:-80px;right:8%;width:500px;height:280px;background:radial-gradient(ellipse,#0044ff07 0%,transparent 70%);pointer-events:none;z-index:0}
+.scanline{position:fixed;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan-glow),transparent);opacity:.12;animation:scan 9s linear infinite;pointer-events:none;z-index:9998}
+@keyframes scan{0%{top:0}100%{top:100vh}}
+
+/* ── TITLEBAR ── */
+.titlebar{
+  position:fixed;top:0;left:0;right:0;height:46px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 18px;
+  background:linear-gradient(180deg,#020d1ef5,#020d1e88);
+  border-bottom:1px solid var(--border2);backdrop-filter:blur(14px);
+  -webkit-app-region:drag;z-index:1000;
+  animation:slideD .7s ease both;
+}
+@keyframes slideD{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+
+.t-logo{display:flex;align-items:center;gap:9px;font-family:var(--fhud);font-size:15px;font-weight:900;letter-spacing:8px;color:var(--cyan);text-shadow:0 0 18px var(--cyan-glow)}
+.t-hex{width:26px;height:26px;border:1.5px solid var(--cyan);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;animation:phex 3s ease infinite;box-shadow:0 0 10px var(--cyan-dim),inset 0 0 8px var(--cyan-dim)}
+@keyframes phex{0%,100%{box-shadow:0 0 8px var(--cyan-dim),inset 0 0 6px var(--cyan-dim)}50%{box-shadow:0 0 18px var(--cyan-glow),inset 0 0 14px var(--cyan-dim)}}
+
+.t-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:20px;align-items:center}
+.t-stat{font-family:var(--fmono);font-size:8px;letter-spacing:2px;color:var(--text-d);display:flex;align-items:center;gap:5px}
+.dot{width:5px;height:5px;border-radius:50%;animation:blink 2s ease infinite}
+.dot.g{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot.c{background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation-delay:.7s}
+.dot.o{background:var(--gold);box-shadow:0 0 6px var(--gold);animation-delay:1.4s}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.t-clock{font-family:var(--fhud);font-size:11px;letter-spacing:3px;color:var(--cyan);opacity:.8}
+
+.win-ctrl{display:flex;gap:6px;-webkit-app-region:no-drag}
+.wb{width:26px;height:26px;border-radius:2px;border:1px solid var(--border2);background:transparent;color:var(--text-d);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:var(--fmono)}
+.wb:hover{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+.wb.red:hover{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.wb.set:hover{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+
+/* ── LAYOUT ── */
+.layout{
+  position:fixed;inset:0;padding:54px 12px 12px;
+  display:grid;grid-template-columns:252px 1fr 210px;grid-template-rows:auto 1fr;
+  gap:9px;z-index:10;
+}
+
+/* ── PANEL ── */
+.panel{
+  background:linear-gradient(135deg,var(--panel) 0%,var(--panel2) 100%);
+  border:1px solid var(--border);border-radius:1px;position:relative;overflow:hidden;
+  animation:panIn .8s ease both;
+}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan-glow),transparent)}
+@keyframes panIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.lp{grid-row:1/3;animation-delay:.08s;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.ct{grid-column:2;animation-delay:.16s}
+.cc{grid-column:2;grid-row:2;animation-delay:.24s;display:flex;flex-direction:column}
+.rp{grid-row:1/3;animation-delay:.32s;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+
+/* corners */
+.ca{position:absolute;width:9px;height:9px;border-color:var(--cyan);border-style:solid;border-width:0}
+.ca.tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px}
+.ca.tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px}
+.ca.bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px}
+.ca.br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px}
+
+/* section header */
+.sec{font-family:var(--fhud);font-size:8px;letter-spacing:4px;color:var(--cyan);padding:9px 13px 7px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;text-transform:uppercase}
+.sec::before{content:'▶';font-size:5px;margin-right:6px;animation:blink 1.5s ease infinite}
+.badge{font-family:var(--fmono);font-size:7px;color:var(--cyan);background:var(--cyan-dim);padding:1px 5px;border-radius:1px;letter-spacing:2px}
+.badge.off{color:var(--red);background:var(--red-dim)}
+.badge.gold{color:var(--gold);background:var(--gold-dim)}
+
+/* ── ARC REACTOR ── */
+.arc-wrap{padding:16px 12px;display:flex;flex-direction:column;align-items:center;border-bottom:1px solid var(--border)}
+.g-tag{font-family:var(--fmono);font-size:8px;letter-spacing:3px;color:var(--cyan);opacity:.55;margin-bottom:3px}
+.g-name{font-family:var(--fhud);font-size:14px;font-weight:700;color:var(--text-b);letter-spacing:2px;margin-bottom:1px}
+.g-role{font-family:var(--fbody);font-size:11px;color:var(--cyan);opacity:.65;margin-bottom:2px}
+.g-custom{font-family:var(--fmono);font-size:9px;color:var(--gold);opacity:.8;letter-spacing:1px}
+
+.arc{width:86px;height:86px;position:relative;margin:12px 0}
+.ar{position:absolute;border-radius:50%;border-style:solid;border-color:transparent}
+.ar1{inset:0;border-width:1px;border-color:var(--cyan-dim);animation:spin 14s linear infinite}
+.ar1::before,.ar1::after{content:'';position:absolute;width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.ar1::before{top:-2.5px;left:calc(50% - 2.5px)}
+.ar1::after{bottom:-2.5px;left:calc(50% - 2.5px)}
+.ar2{inset:9px;border-width:1px;border-color:var(--border2);animation:spin 9s linear infinite reverse}
+.ar2::before{content:'';position:absolute;width:3px;height:3px;border-radius:50%;background:var(--blue2);box-shadow:0 0 6px var(--blue2);top:-1.5px;right:9px}
+.ar3{inset:20px;border-width:2px;border-color:var(--cyan);box-shadow:0 0 16px var(--cyan-glow),inset 0 0 14px var(--cyan-dim);animation:parc 2.5s ease-in-out infinite;display:flex;align-items:center;justify-content:center;font-family:var(--fhud);font-size:8px;font-weight:700;color:var(--cyan)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes parc{0%,100%{box-shadow:0 0 14px var(--cyan-glow),inset 0 0 12px var(--cyan-dim)}50%{box-shadow:0 0 28px var(--cyan),inset 0 0 22px var(--cyan-dim)}}
+
+/* stats */
+.si{padding:6px 13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.sl{font-family:var(--fmono);font-size:7px;letter-spacing:2px;color:var(--text-d)}
+.sv{font-family:var(--fhud);font-size:9px;letter-spacing:2px;color:var(--cyan)}
+.sv.g{color:var(--green)}.sv.o{color:var(--gold)}.sv.r{color:var(--red)}
+
+/* bars */
+.bw{padding:7px 13px;border-bottom:1px solid var(--border)}
+.bh{display:flex;justify-content:space-between;font-family:var(--fmono);font-size:7px;letter-spacing:2px;color:var(--text-d);margin-bottom:4px}
+.bt{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.bf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));box-shadow:0 0 5px var(--cyan-dim);animation:barin 1.5s ease both}
+@keyframes barin{from{width:0!important}}
+.bf.o{background:linear-gradient(90deg,#bb7700,var(--gold))}
+.bf.g{background:linear-gradient(90deg,#008844,var(--green))}
+
+/* quick actions */
+.qa{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px}
+.qb{background:var(--border);border:1px solid var(--border2);border-radius:1px;padding:8px 5px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.qb:hover{background:var(--cyan-dim);border-color:var(--cyan);box-shadow:0 0 8px var(--cyan-dim);transform:translateY(-1px)}
+.qb:active{transform:translateY(0)}
+.qi{font-size:13px;margin-bottom:2px}
+.ql{font-family:var(--fhud);font-size:7px;letter-spacing:2px;color:var(--text);text-transform:uppercase}
+
+.hud-txt{font-family:var(--fmono);font-size:7px;letter-spacing:2px;color:var(--cyan);opacity:.22;padding:7px 13px;line-height:1.9}
+
+/* ── CENTER TOP ── */
+.wc{padding:14px 18px 10px}
+.wc-title{font-family:var(--fhud);font-size:26px;font-weight:900;letter-spacing:3px;color:var(--text-b);line-height:1.1;margin-bottom:3px;animation:glitch 10s ease-in-out infinite;text-shadow:0 0 14px var(--cyan-dim)}
+@keyframes glitch{0%,94%,100%{text-shadow:0 0 14px var(--cyan-dim);transform:none}95%{text-shadow:-2px 0 var(--red),2px 0 var(--cyan);transform:translateX(1px)}96%{text-shadow:2px 0 var(--red),-2px 0 var(--cyan);transform:translateX(-1px)}97%{text-shadow:0 0 14px var(--cyan-dim);transform:none}}
+.wc-sub{font-family:var(--fbody);font-size:11px;color:var(--cyan);letter-spacing:3px;opacity:.65;margin-bottom:8px}
+.wc-q{font-family:var(--fmono);font-size:9px;color:var(--text);opacity:.45;border-left:2px solid var(--cyan);padding-left:9px;line-height:1.7;margin-bottom:12px}
+
+/* waveform */
+.wf{display:flex;align-items:center;gap:2px;padding:7px 18px;border-bottom:1px solid var(--border);height:38px}
+.wb2{width:2px;border-radius:2px;background:var(--cyan);opacity:.45;box-shadow:0 0 3px var(--cyan-dim);animation:wd 1.5s ease-in-out infinite}
+@keyframes wd{0%,100%{transform:scaleY(.12);opacity:.25}50%{transform:scaleY(1);opacity:.75}}
+
+/* mode chips */
+.modes{display:flex;gap:4px;padding:7px 13px;flex-wrap:wrap}
+.mc{font-family:var(--fhud);font-size:7px;letter-spacing:2px;padding:3px 7px;border:1px solid var(--border2);border-radius:1px;cursor:pointer;transition:all .2s;color:var(--text-d);text-transform:uppercase}
+.mc:hover,.mc.on{border-color:var(--cyan);color:var(--cyan);background:var(--cyan-dim);box-shadow:0 0 5px var(--cyan-dim)}
+
+/* ── CHAT ── */
+.chat-msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.msg{display:flex;gap:7px;animation:min .35s ease both}
+@keyframes min{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.msg.u{flex-direction:row-reverse}
+.mav{width:24px;height:24px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--fhud);font-size:7px;color:var(--cyan);flex-shrink:0}
+.msg.ex .mav{background:var(--cyan-dim);border-color:var(--cyan);box-shadow:0 0 7px var(--cyan-dim)}
+.msg.u .mav{background:var(--border)}
+.mbub{max-width:74%;padding:8px 12px;font-size:13px;line-height:1.55;font-family:var(--fbody)}
+.msg.ex .mbub{background:linear-gradient(135deg,#03101e,#041728);border:1px solid var(--border2);color:var(--text-b);border-radius:0 6px 6px 6px}
+.msg.u  .mbub{background:linear-gradient(135deg,#071c38,#092240);border:1px solid var(--blue2);color:var(--text-b);border-radius:6px 0 6px 6px;text-align:right}
+.mmeta{font-family:var(--fmono);font-size:7px;color:var(--cyan);opacity:.4;margin-bottom:2px;letter-spacing:2px}
+
+.typing{display:flex;gap:4px;align-items:center;padding:9px 12px}
+.td{width:4px;height:4px;border-radius:50%;background:var(--cyan);animation:tb 1.2s ease infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-4px);opacity:1}}
+
+/* input row */
+.cin-row{padding:9px 11px;border-top:1px solid var(--border);display:flex;gap:7px;align-items:flex-end}
+.ci{flex:1;background:transparent;border:1px solid var(--border);border-radius:1px;padding:8px 11px;color:var(--text-b);font-family:var(--fbody);font-size:13px;outline:none;resize:none;min-height:36px;max-height:86px;transition:border-color .2s,box-shadow .2s;scrollbar-width:thin}
+.ci:focus{border-color:var(--cyan);box-shadow:0 0 10px var(--cyan-dim)}
+.ci::placeholder{color:var(--text-d)}
+.sbtn{width:36px;height:36px;border:none;border-radius:1px;cursor:pointer;background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px var(--cyan-dim);transition:all .2s;flex-shrink:0}
+.sbtn:hover{box-shadow:0 0 20px var(--cyan-glow);transform:scale(1.05)}
+.sbtn:active{transform:scale(.95)}
+.mbtn{width:36px;height:36px;border:1px solid var(--border2);border-radius:1px;background:var(--border);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.mbtn:hover,.mbtn.on{border-color:var(--red);color:var(--red);box-shadow:0 0 9px var(--red-dim)}
+.mbtn.on{animation:pmic .9s ease infinite}
+@keyframes pmic{0%,100%{box-shadow:0 0 6px var(--red-dim)}50%{box-shadow:0 0 16px var(--red)}}
+
+/* offline/status banner */
+.banner{display:none;padding:5px 13px;font-family:var(--fmono);font-size:7px;letter-spacing:2px;text-align:center;border-bottom:1px solid}
+.banner.off{display:block;background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.banner.warn{display:block;background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+.banner.ok{display:block;background:var(--green-dim);border-color:var(--green);color:var(--green)}
+
+/* ── RIGHT PANEL ── */
+.radar-w{padding:12px;display:flex;justify-content:center;border-bottom:1px solid var(--border)}
+.radar{width:100px;height:100px;position:relative}
+.radar svg{animation:spin 7s linear infinite}
+.r-core{position:absolute;inset:26px;border-radius:50%;background:radial-gradient(circle,var(--cyan-dim),transparent);animation:parc 3s ease infinite}
+.mini-chart{padding:9px 12px;border-bottom:1px solid var(--border)}
+.cbars{display:flex;align-items:flex-end;gap:2px;height:40px}
+.cb{flex:1;background:linear-gradient(to top,var(--blue),var(--cyan));border-radius:1px;opacity:.55;transition:opacity .2s;box-shadow:0 0 3px var(--cyan-dim);animation:barin 1s ease both}
+.cb:hover{opacity:1}
+.notif{padding:8px 11px;border-left:2px solid var(--cyan);margin:4px 9px;border-radius:0 1px 1px 0;background:var(--cyan-soft);cursor:pointer;transition:background .2s;animation:nsl .5s ease both}
+@keyframes nsl{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+.notif:hover{background:var(--cyan-dim)}
+.notif.w{border-left-color:var(--gold);background:var(--gold-dim)}.notif.w:hover{background:#ffcc001a}
+.notif.r{border-left-color:var(--red);background:var(--red-dim)}
+.nt{font-family:var(--fhud);font-size:7px;letter-spacing:2px;color:var(--cyan);margin-bottom:2px}
+.notif.w .nt{color:var(--gold)}.notif.r .nt{color:var(--red)}
+.nb{font-size:11px;color:var(--text);opacity:.8;line-height:1.4;font-family:var(--fbody)}
+
+/* ── SETTINGS MODAL ── */
+.modal-bg{position:fixed;inset:0;background:#020810ee;backdrop-filter:blur(8px);z-index:5000;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{
+  width:520px;background:linear-gradient(135deg,var(--panel),var(--panel2));
+  border:1px solid var(--border3);border-radius:2px;position:relative;overflow:hidden;
+  animation:modalIn .3s ease both;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}}
+.modal::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.modal-title{font-family:var(--fhud);font-size:10px;letter-spacing:5px;color:var(--cyan);padding:16px 20px 14px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center}
+.modal-close{cursor:pointer;color:var(--text-d);font-size:12px;transition:color .2s}
+.modal-close:hover{color:var(--red)}
+.modal-body{padding:20px}
+.field{margin-bottom:16px}
+.field-label{font-family:var(--fmono);font-size:8px;letter-spacing:3px;color:var(--cyan);opacity:.7;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.field-hint{font-size:7px;color:var(--text-d);letter-spacing:1px}
+.field input,.field select{
+  width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:1px;
+  padding:9px 12px;color:var(--text-b);font-family:var(--fmono);font-size:11px;
+  outline:none;transition:border-color .2s,box-shadow .2s;letter-spacing:1px;
+}
+.field input:focus,.field select:focus{border-color:var(--cyan);box-shadow:0 0 10px var(--cyan-dim)}
+.field input[type=password]{letter-spacing:3px}
+.field select{cursor:pointer}
+.field select option{background:var(--panel2)}
+.key-row{display:flex;gap:8px}
+.key-row input{flex:1}
+.field-tip{font-family:var(--fbody);font-size:11px;color:var(--text-d);margin-top:5px;padding:6px 10px;border-left:2px solid var(--border2);line-height:1.5}
+.field-tip a{color:var(--cyan);text-decoration:none}
+.modal-actions{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.btn{font-family:var(--fhud);font-size:8px;letter-spacing:3px;text-transform:uppercase;padding:8px 16px;border-radius:1px;cursor:pointer;transition:all .2s;border:1px solid}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--cyan));border-color:var(--cyan);color:#fff;box-shadow:0 0 10px var(--cyan-dim)}
+.btn.primary:hover{box-shadow:0 0 18px var(--cyan-glow)}
+.btn.sec{background:transparent;border-color:var(--border2);color:var(--text-d)}
+.btn.sec:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn.danger{background:transparent;border-color:var(--border2);color:var(--red)}
+.btn.danger:hover{background:var(--red-dim);border-color:var(--red)}
+.save-status{font-family:var(--fmono);font-size:8px;letter-spacing:2px;margin-right:auto;padding-top:6px;transition:opacity .5s}
+.save-status.ok{color:var(--green)}.save-status.err{color:var(--red)}
+
+/* divider */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.section-mini{font-family:var(--fhud);font-size:7px;letter-spacing:4px;color:var(--cyan);opacity:.5;margin-bottom:10px}
+
+/* ── BOOT ── */
+.boot{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:bout .5s ease 3.2s both}
+@keyframes bout{to{opacity:0;pointer-events:none}}
+.bt-title{font-family:var(--fhud);font-size:48px;font-weight:900;letter-spacing:14px;color:var(--cyan);text-shadow:0 0 36px var(--cyan),0 0 72px var(--cyan-dim);animation:btitle 2.5s ease both}
+@keyframes btitle{0%{opacity:0;transform:scale(.8);letter-spacing:48px}50%{opacity:1;transform:scale(1);letter-spacing:14px}90%{opacity:1}100%{opacity:.9}}
+.bt-sub{font-family:var(--fmono);font-size:9px;letter-spacing:4px;color:var(--text-d);opacity:0;animation:fup .4s ease 1.2s both;margin-top:8px}
+.bt-bar-w{width:260px;height:1px;background:var(--border);margin-top:26px;opacity:0;animation:fup .3s ease 1.5s both}
+.bt-bar{height:100%;background:linear-gradient(90deg,var(--blue),var(--cyan));box-shadow:0 0 7px var(--cyan);animation:bprog 1.2s ease 1.5s both}
+@keyframes bprog{from{width:0}to{width:100%}}
+.bt-log{font-family:var(--fmono);font-size:8px;color:var(--text-d);opacity:0;animation:fup .3s ease 1.8s both;margin-top:12px;text-align:center;letter-spacing:2px;line-height:2}
+@keyframes fup{to{opacity:.55}}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- BOOT -->
+<div class="boot" id="boot">
+  <div class="bt-title">EXCELLA</div>
+  <div class="bt-sub">ADVANCED AI INTERFACE · GITHUB SYNC ENABLED · v6.0</div>
+  <div class="bt-bar-w"><div class="bt-bar"></div></div>
+  <div class="bt-log">INITIALIZING NEURAL CORE...<br>SYNCING WITH GITHUB...<br>LOADING PERSONALITY MATRIX...<br>EXCELLA ONLINE ●</div>
+</div>
+
+<!-- AMBIENT -->
+<div class="glow-t"></div><div class="glow-b"></div><div class="scanline"></div>
+
+<!-- ═══════════ SETTINGS MODAL ═══════════ -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <div class="ca tl"></div><div class="ca tr"></div><div class="ca bl"></div><div class="ca br"></div>
+    <div class="modal-title">
+      ⚙ EXCELLA SETTINGS
+      <span class="modal-close" onclick="closeSettings()">✕ CLOSE</span>
+    </div>
+    <div class="modal-body">
+
+      <div class="section-mini">AI ENGINE — GROQ (FREE & FAST)</div>
+
+      <div class="field">
+        <div class="field-label">
+          GROQ API KEY
+          <span class="field-hint">FREE · NO CREDIT CARD · WORKS GLOBALLY</span>
+        </div>
+        <div class="key-row">
+          <input type="password" id="apiKeyInput" placeholder="gsk_...your key here..." autocomplete="off"/>
+          <button class="btn sec" onclick="toggleKeyVis()">👁</button>
+        </div>
+        <div class="field-tip">
+          Get your FREE key in 60 seconds:<br>
+          1. Go to <strong style="color:var(--cyan)">console.groq.com</strong><br>
+          2. Sign in with Google (free, no card)<br>
+          3. Click <strong>"API Keys"</strong> → <strong>"Create API Key"</strong><br>
+          4. Copy & paste it above · 14,400 free requests/day
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-mini">OPERATOR IDENTITY</div>
+
+      <div class="field">
+        <div class="field-label">YOUR NAME / CALLSIGN</div>
+        <input type="text" id="opName" placeholder="Commander" maxlength="30"/>
+      </div>
+
+      <div class="field">
+        <div class="field-label">EXCELLA'S PERSONALITY</div>
+        <select id="personality">
+          <option value="jarvis">J.A.R.V.I.S. — Formal, precise, British wit</option>
+          <option value="friday">F.R.I.D.A.Y. — Warm, efficient, supportive</option>
+          <option value="stark">STARK MODE — Direct, genius-level, no fluff</option>
+          <option value="ghost">GHOST — Tactical, minimal, mission-focused</option>
+          <option value="oracle">ORACLE — Analytical, data-driven, wise</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="field-label">AI MODEL</div>
+        <select id="aiModel">
+          <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Smartest, FREE (Recommended)</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B — Ultra Fast, FREE</option>
+          <option value="mixtral-8x7b-32768">Mixtral 8x7B — Balanced, FREE</option>
+          <option value="gemma2-9b-it">Gemma 2 9B — Google's model, FREE</option>
+        </select>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-mini">INTERFACE</div>
+
+      <div class="field">
+        <div class="field-label">ACCENT COLOR</div>
+        <select id="accentColor">
+          <option value="cyan">Cyan — Default Stark Blue</option>
+          <option value="gold">Gold — Iron Man Mark V</option>
+          <option value="green">Green — Hulkbuster</option>
+          <option value="red">Red — War Machine</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="modal-actions">
+      <span class="save-status" id="saveStatus"></span>
+      <button class="btn danger" onclick="clearHistory()">CLEAR HISTORY</button>
+      <button class="btn sec" onclick="closeSettings()">CANCEL</button>
+      <button class="btn primary" onclick="saveSettings()">SAVE & APPLY</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ TITLEBAR ═══════════ -->
+<div class="titlebar">
+  <div class="t-logo">
+    <div class="t-hex">⬡</div>
+    EXCELLA
+  </div>
+  <div class="t-center">
+    <div class="t-stat"><div class="dot g"></div>NEURAL CORE</div>
+    <div class="t-stat"><div class="dot c"></div>GROQ UPLINK</div>
+    <div class="t-stat"><div class="dot o"></div>SYSTEMS</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="t-clock" id="hTime">--:--:--</div>
+    <div class="t-clock" id="verDisp" style="font-size:9px;opacity:.5">v6.0</div>
+    <div class="win-ctrl">
+      <button class="wb set" onclick="openSettings()" title="Settings">⚙</button>
+      <button class="wb" onclick="winMin()" title="Minimize">─</button>
+      <button class="wb" onclick="winMax()" title="Fullscreen">□</button>
+      <button class="wb red" onclick="winClose()" title="Close">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MAIN LAYOUT ═══════════ -->
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="panel lp">
+    <div class="ca tl"></div><div class="ca tr"></div><div class="ca bl"></div><div class="ca br"></div>
+    <div class="sec">OPERATOR PROFILE</div>
+    <div class="arc-wrap">
+      <div class="g-tag" id="gTag">GOOD MORNING</div>
+      <div class="g-name">Welcome back,</div>
+      <div class="g-role" id="gRole">Commander</div>
+      <div class="g-custom" id="gCustom"></div>
+      <div class="arc">
+        <div class="ar ar1"></div>
+        <div class="ar ar2"></div>
+        <div class="ar ar3">EX</div>
+      </div>
+    </div>
+
+    <div class="si"><span class="sl">SESSION</span><span class="sv" id="sessId">--</span></div>
+    <div class="si"><span class="sl">STATUS</span><span class="sv g">● ACTIVE</span></div>
+    <div class="si"><span class="sl">AI ENGINE</span><span class="sv o">GROQ</span></div>
+    <div class="si"><span class="sl">UPTIME</span><span class="sv" id="uptime">00:00:00</span></div>
+    <div class="si"><span class="sl">MODE</span><span class="sv o" id="modeDisp">STANDARD</span></div>
+    <div class="si"><span class="sl">MESSAGES</span><span class="sv" id="msgCount">0</span></div>
+    <div class="si"><span class="sl">API STATUS</span><span class="sv r" id="apiStatus">NO KEY</span></div>
+
+    <div class="bw">
+      <div class="bh"><span>NEURAL LOAD</span><span id="nlVal">72%</span></div>
+      <div class="bt"><div class="bf" id="nlBar" style="width:72%"></div></div>
+    </div>
+    <div class="bw">
+      <div class="bh"><span>MEMORY</span><span id="memVal">58%</span></div>
+      <div class="bt"><div class="bf o" id="memBar" style="width:58%"></div></div>
+    </div>
+    <div class="bw">
+      <div class="bh"><span>CONFIDENCE</span><span>94%</span></div>
+      <div class="bt"><div class="bf g" style="width:94%"></div></div>
+    </div>
+
+    <div class="sec" style="margin-top:3px">QUICK ACCESS</div>
+    <div class="qa">
+      <div class="qb" onclick="q('Give me a morning briefing — what should I focus on today?')"><div class="qi">🌅</div><div class="ql">Briefing</div></div>
+      <div class="qb" onclick="q('Give me a full system status and performance report')"><div class="qi">📊</div><div class="ql">Status</div></div>
+      <div class="qb" onclick="q('What are the latest developments in AI and technology?')"><div class="qi">📡</div><div class="ql">Intel</div></div>
+      <div class="qb" onclick="q('Help me build a strategic plan for this week')"><div class="qi">🧠</div><div class="ql">Strategy</div></div>
+      <div class="qb" onclick="q('Run a creative brainstorm session — surprise me with ideas')"><div class="qi">💡</div><div class="ql">Ideas</div></div>
+      <div class="qb" onclick="q('What should I prioritize and avoid today?')"><div class="qi">🎯</div><div class="ql">Focus</div></div>
+      <div class="qb" onclick="q('Tell me something fascinating I probably don\'t know')"><div class="qi">🔭</div><div class="ql">Discover</div></div>
+      <div class="qb" onclick="openSettings()"><div class="qi">⚙</div><div class="ql">Settings</div></div>
+    </div>
+
+    <div class="hud-txt">BUILD: 2025.07.01<br>ENGINE: GROQ 2.0<br>NODE: ALPHA-7<br>ENCRYPT: AES-512</div>
+  </div>
+
+  <!-- CENTER TOP -->
+  <div class="panel ct">
+    <div class="ca tl"></div><div class="ca tr"></div><div class="ca bl"></div><div class="ca br"></div>
+    <div class="wc">
+      <div class="wc-title" id="mainGreet">Good morning.</div>
+      <div class="wc-sub">I AM EXCELLA — YOUR INTELLIGENCE INTERFACE.</div>
+      <div class="wc-q">All systems nominal. Groq neural core at peak efficiency. Tactical database synced.<br>How may I assist you today, <span id="opLabel">Commander</span>?</div>
+    </div>
+    <div class="wf" id="wf"></div>
+    <div class="modes">
+      <div class="mc on" onclick="setMode(this,'STANDARD')">STANDARD</div>
+      <div class="mc" onclick="setMode(this,'FOCUSED')">FOCUSED</div>
+      <div class="mc" onclick="setMode(this,'CREATIVE')">CREATIVE</div>
+      <div class="mc" onclick="setMode(this,'TACTICAL')">TACTICAL</div>
+      <div class="mc" onclick="setMode(this,'STEALTH')">STEALTH</div>
+      <div class="mc" onclick="setMode(this,'ANALYSIS')">ANALYSIS</div>
+    </div>
+  </div>
+
+  <!-- CENTER CHAT -->
+  <div class="panel cc">
+    <div class="ca tl"></div><div class="ca tr"></div><div class="ca bl"></div><div class="ca br"></div>
+    <div class="sec">NEURAL COMM LINK <span class="badge" id="connBadge">ONLINE</span></div>
+    <div class="banner" id="banner"></div>
+
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="msg ex">
+        <div class="mav">EX</div>
+        <div class="mbub">
+          <div class="mmeta">EXCELLA · BOOT · SYS</div>
+          All systems online, Commander. I am EXCELLA, your advanced AI interface powered by Google Groq. Click the <strong style="color:var(--cyan)">⚙ Settings</strong> button in the top-right to enter your free API key and configure your profile. I am standing by.
+        </div>
+      </div>
+    </div>
+
+    <div class="cin-row">
+      <button class="mbtn" id="micBtn" onclick="toggleMic()">🎙</button>
+      <textarea class="ci" id="ci" placeholder="Speak your command, Commander..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="sbtn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel rp">
+    <div class="ca tl"></div><div class="ca tr"></div><div class="ca bl"></div><div class="ca br"></div>
+    <div class="sec">TACTICAL RADAR</div>
+    <div class="radar-w">
+      <div class="radar">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff0e" stroke-width="1"/>
+          <circle cx="50" cy="50" r="34" fill="none" stroke="#00d4ff18" stroke-width="1"/>
+          <circle cx="50" cy="50" r="21" fill="none" stroke="#00d4ff22" stroke-width="1"/>
+          <circle cx="50" cy="50" r="8"  fill="none" stroke="#00d4ff44" stroke-width="1"/>
+          <line x1="50" y1="4"  x2="50" y2="96" stroke="#00d4ff0d" stroke-width="1"/>
+          <line x1="4"  y1="50" x2="96" y2="50" stroke="#00d4ff0d" stroke-width="1"/>
+          <path d="M50 50 L50 4 A46 46 0 0 1 96 50 Z" fill="#00d4ff07"/>
+          <circle cx="50" cy="50" r="2.5" fill="#00d4ff" opacity=".9"/>
+          <circle cx="34" cy="29" r="1.8" fill="#00ff88" opacity=".9"><animate attributeName="opacity" values="1;.2;1" dur="2.3s" repeatCount="indefinite"/></circle>
+          <circle cx="67" cy="41" r="1.8" fill="#ffcc00" opacity=".9"><animate attributeName="opacity" values="1;.2;1" dur="3.1s" repeatCount="indefinite"/></circle>
+          <circle cx="46" cy="70" r="1.8" fill="#ff3344" opacity=".9"><animate attributeName="opacity" values="1;.2;1" dur="1.7s" repeatCount="indefinite"/></circle>
+        </svg>
+        <div class="r-core"></div>
+      </div>
+    </div>
+
+    <div class="sec">ACTIVITY</div>
+    <div class="mini-chart"><div class="cbars" id="actChart"></div></div>
+
+    <div class="sec">DATE & TIME</div>
+    <div class="si"><span class="sl">DATE</span><span class="sv" id="dateD" style="font-size:7px">--</span></div>
+    <div class="si"><span class="sl">DAY</span><span class="sv" id="dayD">--</span></div>
+    <div class="si"><span class="sl">LOCATION</span><span class="sv" style="font-size:7px">PORT LOUIS, MU</span></div>
+
+    <div class="sec">ALERTS</div>
+    <div class="notif" style="animation-delay:.05s">
+      <div class="nt">● SYSTEM</div>
+      <div class="nb">Neural sync complete. Groq core loaded.</div>
+    </div>
+    <div class="notif w" style="animation-delay:.15s" id="keyAlert">
+      <div class="nt">▲ API KEY</div>
+      <div class="nb">No key detected. Open Settings to add your free Groq key.</div>
+    </div>
+    <div class="notif" style="animation-delay:.25s" id="sessNotif">
+      <div class="nt">● SESSION</div>
+      <div class="nb" id="sessNotifBody">Initializing...</div>
+    </div>
+
+    <div class="hud-txt">ENGINE: GROQ 2.0<br>TIER: FREE<br>LIMIT: 1500/DAY<br>LOC: 20.16°S 57.49°E</div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════
+//   EXCELLA v6.0 — MAIN SCRIPT
+//   GitHub Auto-Update Edition
+// ═══════════════════════════════
+
+const EXCELLA_VERSION = '6.0.0';
+const GITHUB_USER = 'sahiljeebun132-dev';
+const GITHUB_REPO = 'Excella';
+const GITHUB_BRANCH = 'main';
+
+// ── BROWSER WINDOW CONTROLS ──
+function winMin() { /* browsers can't minimize themselves; no-op */ }
+function winMax() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+function winClose() {
+  if (confirm('Close EXCELLA, Commander?')) window.close();
+}
+
+// ── AUTO-UPDATE CHECK (silent background) ──
+async function checkForUpdates() {
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/commits/${GITHUB_BRANCH}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const latestSha = data.sha?.substring(0, 7) || '';
+    const stored = localStorage.getItem('ex_last_sha');
+    if (stored && stored !== latestSha) {
+      // New version detected
+      const msg = data.commit?.message || 'New update available';
+      console.log(`[EXCELLA] Update detected: ${latestSha} — ${msg}`);
+      addMsg('ex', `🚀 <strong>System update detected, ${opName}!</strong><br>Latest version: <code style="color:var(--cyan)">${latestSha}</code><br>Note: ${msg}<br><br>Reload EXCELLA (Ctrl+R) to apply the update.`);
+    }
+    localStorage.setItem('ex_last_sha', latestSha);
+    document.getElementById('verDisp').textContent = latestSha || EXCELLA_VERSION;
+  } catch(e) {
+    console.log('[EXCELLA] Update check failed (offline or rate limited)');
+  }
+}
+
+// ── STATE ──
+let apiKey = '';
+let opName = 'Commander';
+let personality = 'jarvis';
+let aiModel = 'groq-2.0-flash';
+let currentMode = 'STANDARD';
+let msgCount = 0;
+let micActive = false;
+let chatHistory = []; // for multi-turn memory
+let keyVisible = false;
+
+// ── LOAD SETTINGS ON BOOT ──
+async function bootLoad() {
+  if (window.excella) {
+    const settings = await window.excella.loadSettings();
+    apiKey      = settings.groqKey   || '';
+    opName      = settings.opName      || 'Commander';
+    personality = settings.personality || 'jarvis';
+    aiModel     = settings.aiModel     || 'llama-3.3-70b-versatile';
+  } else {
+    // browser fallback
+    apiKey      = localStorage.getItem('ex_key')  || '';
+    opName      = localStorage.getItem('ex_name') || 'Commander';
+    personality = localStorage.getItem('ex_pers') || 'jarvis';
+    aiModel     = localStorage.getItem('ex_model')|| 'llama-3.3-70b-versatile';
+  }
+  applySettings();
+}
+bootLoad();
+
+function applySettings() {
+  document.getElementById('gRole').textContent   = opName;
+  document.getElementById('opLabel').textContent = opName;
+  updateApiStatus();
+}
+
+function updateApiStatus() {
+  const el = document.getElementById('apiStatus');
+  const ka = document.getElementById('keyAlert');
+  if (apiKey) {
+    el.textContent = 'ACTIVE';
+    el.className   = 'sv g';
+    ka.style.display = 'none';
+  } else {
+    el.textContent = 'NO KEY';
+    el.className   = 'sv r';
+    ka.style.display = '';
+  }
+}
+
+// ── SETTINGS MODAL ──
+function openSettings() {
+  document.getElementById('apiKeyInput').value  = apiKey;
+  document.getElementById('opName').value       = opName;
+  document.getElementById('personality').value  = personality;
+  document.getElementById('aiModel').value      = aiModel;
+  document.getElementById('saveStatus').textContent = '';
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+function toggleKeyVis() {
+  keyVisible = !keyVisible;
+  document.getElementById('apiKeyInput').type = keyVisible ? 'text' : 'password';
+}
+async function saveSettings() {
+  const key  = document.getElementById('apiKeyInput').value.trim();
+  const name = document.getElementById('opName').value.trim() || 'Commander';
+  const pers = document.getElementById('personality').value;
+  const model= document.getElementById('aiModel').value;
+  const col  = document.getElementById('accentColor').value;
+
+  apiKey      = key;
+  opName      = name;
+  personality = pers;
+  aiModel     = model;
+
+  const payload = { groqKey: key, opName: name, personality: pers, aiModel: model, accentColor: col };
+
+  try {
+    if (window.excella) {
+      await window.excella.saveSettings(payload);
+    } else {
+      localStorage.setItem('ex_key',   key);
+      localStorage.setItem('ex_name',  name);
+      localStorage.setItem('ex_pers',  pers);
+      localStorage.setItem('ex_model', model);
+    }
+    const ss = document.getElementById('saveStatus');
+    ss.textContent = '✓ SAVED SUCCESSFULLY';
+    ss.className   = 'save-status ok';
+    applySettings();
+    setTimeout(() => {
+      ss.style.opacity = '0';
+      setTimeout(closeSettings, 500);
+    }, 1200);
+    if (key) addMsg('ex', `Settings updated, ${name}. Groq API key secured. Neural link established. All systems green.`);
+  } catch(e) {
+    const ss = document.getElementById('saveStatus');
+    ss.textContent = '✕ SAVE FAILED';
+    ss.className = 'save-status err';
+  }
+}
+function clearHistory() {
+  chatHistory = [];
+  msgCount = 0;
+  document.getElementById('msgCount').textContent = '0';
+  document.getElementById('chatMsgs').innerHTML = '';
+  addMsg('ex', `Chat history cleared, ${opName}. Memory wiped. Fresh session initialized.`);
+  closeSettings();
+}
+
+// ── SYSTEM PROMPT BY PERSONALITY ──
+function getSystemPrompt() {
+  const names = {
+    jarvis:  `You are EXCELLA, modeled after J.A.R.V.I.S. — formal, precise, with subtle British wit and warmth. You address the user as "${opName}." Highly intelligent, loyal, always anticipate needs. Keep responses concise unless detail is requested. No markdown headers. Current mode: ${currentMode}.`,
+    friday:  `You are EXCELLA, modeled after F.R.I.D.A.Y. — warm, efficient, supportive, slightly casual but always professional. You address the user as "${opName}." You're like a brilliant friend who happens to be an AI. Current mode: ${currentMode}.`,
+    stark:   `You are EXCELLA in STARK MODE — you ARE Tony Stark's AI but with a no-nonsense genius personality. Ultra-direct, zero fluff, occasionally sarcastic but brilliant. Address the user as "${opName}." Get to the point fast. Current mode: ${currentMode}.`,
+    ghost:   `You are EXCELLA in GHOST MODE — tactical, minimal, every word counts. Military precision. No small talk. Address the user as "${opName}." Mission-focused. Current mode: ${currentMode}.`,
+    oracle:  `You are EXCELLA in ORACLE MODE — deeply analytical, data-driven, wise. You see patterns others miss. Address the user as "${opName}." Offer insights, not just answers. Current mode: ${currentMode}.`,
+  };
+  return names[personality] || names.jarvis;
+}
+
+// ── CLOCK ──
+function tick() {
+  const n = new Date();
+  const p = x => String(x).padStart(2,'0');
+  document.getElementById('hTime').textContent = `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  const h = n.getHours();
+  const greet = h<12?'Good morning.':h<17?'Good afternoon.':'Good evening.';
+  const tag   = h<12?'GOOD MORNING':h<17?'GOOD AFTERNOON':'GOOD EVENING';
+  document.getElementById('mainGreet').textContent = greet;
+  document.getElementById('gTag').textContent = tag;
+  const days=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const mons=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('dateD').textContent = `${n.getDate()} ${mons[n.getMonth()]} ${n.getFullYear()}`;
+  document.getElementById('dayD').textContent  = days[n.getDay()];
+}
+setInterval(tick, 1000); tick();
+
+// ── UPTIME ──
+let secs=0;
+setInterval(()=>{
+  secs++;
+  const h=String(Math.floor(secs/3600)).padStart(2,'0');
+  const m=String(Math.floor((secs%3600)/60)).padStart(2,'0');
+  const s=String(secs%60).padStart(2,'0');
+  document.getElementById('uptime').textContent=`${h}:${m}:${s}`;
+},1000);
+
+// ── SESSION ──
+const sid='SN-'+Math.floor(Math.random()*900+100);
+document.getElementById('sessId').textContent=sid;
+document.getElementById('sessNotifBody').textContent=`Session ${sid} initialized.`;
+
+// ── NEURAL LOAD FLICKER ──
+setInterval(()=>{
+  const nl=Math.floor(60+Math.random()*24);
+  const mem=Math.floor(46+Math.random()*24);
+  document.getElementById('nlVal').textContent=nl+'%';
+  document.getElementById('nlBar').style.width=nl+'%';
+  document.getElementById('memVal').textContent=mem+'%';
+  document.getElementById('memBar').style.width=mem+'%';
+},3500);
+
+// ── WAVEFORM ──
+const wf=document.getElementById('wf');
+for(let i=0;i<42;i++){
+  const b=document.createElement('div');
+  b.className='wb2';
+  b.style.height=(Math.random()*22+4)+'px';
+  b.style.animationDuration=(0.7+Math.random()*1.3)+'s';
+  b.style.animationDelay=(Math.random())+'s';
+  wf.appendChild(b);
+}
+
+// ── ACTIVITY CHART ──
+const ac=document.getElementById('actChart');
+[22,50,35,65,45,80,60,85,70,92,75,55,88,48,63,38,72,58,44,68,52,82,40,65,55,78,30,70].forEach((v,i)=>{
+  const b=document.createElement('div');
+  b.className='cb';b.style.height=v+'%';b.style.animationDelay=(i*.03)+'s';
+  ac.appendChild(b);
+});
+
+// ── MODE ──
+function setMode(el,mode){
+  document.querySelectorAll('.mc').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  currentMode=mode;
+  document.getElementById('modeDisp').textContent=mode;
+  addMsg('ex',`Mode switched to <strong>${mode}</strong>. Neural parameters adjusted, ${opName}.`);
+}
+
+// ── MIC ──
+function toggleMic(){
+  micActive=!micActive;
+  const b=document.getElementById('micBtn');
+  b.classList.toggle('on',micActive);
+  b.textContent=micActive?'🔴':'🎙';
+  document.getElementById('ci').placeholder=micActive?`● Listening, ${opName}...`:`Speak your command, ${opName}...`;
+}
+
+// ── QUICK PROMPTS ──
+function q(t){document.getElementById('ci').value=t;document.getElementById('ci').focus();}
+
+// ── CHAT ──
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,86)+'px';}
+
+async function sendMsg(){
+  const inp=document.getElementById('ci');
+  const txt=inp.value.trim();
+  if(!txt) return;
+
+  addMsg('user',txt);
+  chatHistory.push({role:'user',content:txt});
+  inp.value='';inp.style.height='auto';
+  msgCount++;
+  document.getElementById('msgCount').textContent=msgCount;
+
+  // Update activity chart live
+  updateChart();
+
+  if(!navigator.onLine){
+    showBanner('⚠ OFFLINE — AI unavailable. Check connection.','off');
+    addMsg('ex',`I detect we are offline, ${opName}. Neural uplink to Groq is unavailable. Please restore connection. Local systems remain operational.`);
+    return;
+  }
+  hideBanner();
+
+  if(!apiKey){
+    addMsg('ex',`API key not configured, ${opName}. Please open <strong style="color:var(--cyan)">⚙ Settings</strong> and enter your free Groq key. Takes 60 seconds at console.groq.com`);
+    return;
+  }
+
+  const tid=addTyping();
+
+  try {
+    let reply;
+
+    // Keep last 10 exchanges for context (memory)
+    const recentHistory = chatHistory.slice(-20);
+
+    if(window.excella && window.excella.chat){
+      // Electron IPC (desktop app)
+      const res = await window.excella.chat({
+        apiKey,
+        messages: recentHistory,
+        systemPrompt: getSystemPrompt(),
+        model: aiModel
+      });
+      reply = parseGroqResponse(res);
+    } else {
+      // Browser fallback (direct API)
+      const groqMessages = [
+        { role: 'system', content: getSystemPrompt() },
+        ...recentHistory.map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}))
+      ];
+      const res = await fetch(`https://api.groq.com/openai/v1/chat/completions`,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':`Bearer ${apiKey}`
+        },
+        body:JSON.stringify({
+          model: aiModel,
+          messages: groqMessages,
+          max_tokens: 1024,
+          temperature: 0.9
+        })
+      });
+      const data = await res.json();
+      reply = parseGroqResponse(data);
+    }
+
+    removeTyping(tid);
+    chatHistory.push({role:'assistant',content:reply});
+    addMsg('ex',reply);
+
+  } catch(err){
+    removeTyping(tid);
+    addMsg('ex',`Neural relay error, ${opName}. Groq uplink interrupted. Check your API key and connection, then retry.`);
+    console.error(err);
+  }
+}
+
+function parseGroqResponse(data){
+  if(data.error) return `API Error: ${data.error.message || 'Unknown error'}. Check your key in Settings.`;
+  try {
+    return data.choices?.[0]?.message?.content || `No response received, ${opName}. Please retry.`;
+  } catch(e){
+    return `Response parsing failed, ${opName}. Please retry.`;
+  }
+}
+
+function addMsg(who,html){
+  const msgs=document.getElementById('chatMsgs');
+  const d=document.createElement('div');
+  d.className=`msg ${who==='ex'?'ex':'u'}`;
+  const n=new Date();
+  const ts=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+  d.innerHTML=`<div class="mav">${who==='ex'?'EX':opName.slice(0,2).toUpperCase()}</div>
+    <div class="mbub"><div class="mmeta">${who==='ex'?'EXCELLA':opName.toUpperCase()} · ${ts}</div>${html}</div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+let tc=0;
+function addTyping(){
+  const id=++tc;
+  const msgs=document.getElementById('chatMsgs');
+  const d=document.createElement('div');
+  d.className='msg ex';d.id='ty-'+id;
+  d.innerHTML=`<div class="mav">EX</div><div class="mbub"><div class="mmeta">EXCELLA · PROCESSING</div><div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div></div>`;
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+  return id;
+}
+function removeTyping(id){const e=document.getElementById('ty-'+id);if(e)e.remove();}
+
+// ── BANNERS ──
+function showBanner(txt,type){
+  const b=document.getElementById('banner');
+  b.textContent=txt;b.className=`banner ${type}`;
+  document.getElementById('connBadge').textContent=type==='off'?'OFFLINE':'WARN';
+  document.getElementById('connBadge').className=`badge ${type==='off'?'off':'gold'}`;
+}
+function hideBanner(){
+  document.getElementById('banner').className='banner';
+  document.getElementById('connBadge').textContent='ONLINE';
+  document.getElementById('connBadge').className='badge';
+}
+
+// ── ONLINE / OFFLINE ──
+window.addEventListener('offline',()=>showBanner('⚠ OFFLINE — Groq uplink lost','off'));
+window.addEventListener('online',()=>hideBanner());
+
+// ── ACTIVITY CHART UPDATE ──
+function updateChart(){
+  const bars=document.querySelectorAll('#actChart .cb');
+  const idx=Math.floor(Math.random()*bars.length);
+  bars[idx].style.height=(40+Math.floor(Math.random()*55))+'%';
+  bars[idx].style.opacity='1';
+  setTimeout(()=>{bars[idx].style.opacity='.55'},800);
+}
+
+// ── BOOT ──
+setTimeout(()=>{document.getElementById('boot').style.display='none';},3700);
+
+// ── AUTO-UPDATE CHECK ON LAUNCH ──
+setTimeout(checkForUpdates, 4000);
+// Re-check every 30 minutes
+setInterval(checkForUpdates, 30 * 60 * 1000);
+</script>
+</body>
+</html>
