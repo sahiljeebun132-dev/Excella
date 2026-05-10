@@ -289,7 +289,22 @@ body::before{
 
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+/* ── STREAMING ── */
+.stream-body{min-height:18px;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+.cur-blink{display:inline-block;width:2px;height:13px;background:var(--cyan);vertical-align:text-bottom;animation:blink .6s ease infinite;margin-left:2px;border-radius:1px}
+/* ── TODO QUEUE ── */
+.todo-item{display:flex;align-items:flex-start;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border)}
+.todo-cb{accent-color:var(--cyan);cursor:pointer;width:11px;height:11px;flex-shrink:0;margin-top:2px}
+.todo-txt{flex:1;font-family:var(--fbody);font-size:11px;color:var(--text);word-break:break-word;line-height:1.3}
+.todo-del{cursor:pointer;color:var(--text-d);font-size:9px;background:none;border:none;font-family:var(--fmono);padding:0 2px;transition:color .2s;flex-shrink:0}.todo-del:hover{color:var(--red)}
+.todo-inp-row{display:flex;gap:4px;padding:6px 8px;border-top:1px solid var(--border)}
+.todo-inp{flex:1;background:transparent;border:1px solid var(--border);padding:4px 7px;color:var(--text-b);font-family:var(--fbody);font-size:11px;outline:none;border-radius:1px;transition:border-color .2s}
+.todo-inp:focus{border-color:var(--cyan);box-shadow:0 0 6px var(--cyan-dim)}
+.todo-inp::placeholder{color:var(--text-d)}
+.todo-add{background:var(--cyan-dim);border:1px solid var(--border2);color:var(--cyan);font-family:var(--fhud);font-size:7px;letter-spacing:2px;padding:4px 8px;cursor:pointer;border-radius:1px;transition:all .2s;white-space:nowrap}.todo-add:hover{background:var(--cyan);color:var(--bg)}
 </style>
+<!-- Framer Motion (vanilla JS) -->
+<script src="https://cdn.jsdelivr.net/npm/motion@11/dist/motion.js"></script>
 </head>
 <body>
 
@@ -322,7 +337,7 @@ body::before{
           <span class="field-hint">FREE · NO CREDIT CARD · WORKS GLOBALLY</span>
         </div>
         <div class="key-row">
-          <input type="password" id="apiKeyInput" placeholder="gsk_...your key here..." autocomplete="off"/>
+          <input type="password" id="apiKeyInput" placeholder="gsk_...your key here..." autocomplete="off" oninput="autoSaveKey(this.value)"/>
           <button class="btn sec" onclick="toggleKeyVis()">👁</button>
         </div>
         <div class="field-tip">
@@ -461,6 +476,13 @@ body::before{
       <div class="qb" onclick="openSettings()"><div class="qi">⚙</div><div class="ql">Settings</div></div>
     </div>
 
+    <div class="sec" style="margin-top:3px">MISSION QUEUE <span class="badge gold" id="todoCount">0</span></div>
+    <div id="todoList"></div>
+    <div class="todo-inp-row">
+      <input class="todo-inp" id="todoInp" placeholder="Add objective..." maxlength="80" onkeydown="if(event.key==='Enter')addTodo()">
+      <button class="todo-add" onclick="addTodo()">+ ADD</button>
+    </div>
+
     <div class="hud-txt">BUILD: 2025.07.01<br>ENGINE: GROQ 2.0<br>NODE: ALPHA-7<br>ENCRYPT: AES-512</div>
   </div>
 
@@ -500,7 +522,9 @@ body::before{
     </div>
 
     <div class="cin-row">
-      <button class="mbtn" id="micBtn" onclick="toggleMic()">🎙</button>
+      <button class="mbtn" id="micBtn" onclick="toggleMic()" title="Voice Input">🎙</button>
+      <button class="mbtn" id="wakeBtn" onclick="toggleAlwaysListen()" title="Hey Excella — always-on wake word">👁</button>
+      <button class="mbtn" onclick="analyzeClipboard()" title="Analyze Clipboard">📋</button>
       <textarea class="ci" id="ci" placeholder="Speak your command, Commander..." rows="1"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button class="sbtn" onclick="sendMsg()">➤</button>
@@ -552,6 +576,12 @@ body::before{
       <div class="nb" id="sessNotifBody">Initializing...</div>
     </div>
 
+    <div class="sec">ENVIRONMENT</div>
+    <div class="si"><span class="sl">WEATHER</span><span class="sv o" id="wIcon">—</span></div>
+    <div class="si"><span class="sl">TEMP</span><span class="sv" id="wTemp">— °C</span></div>
+    <div class="si"><span class="sl">CONDITION</span><span class="sv" id="wCond" style="font-size:7px">SYNCING</span></div>
+    <div class="si"><span class="sl">HUMIDITY</span><span class="sv" id="wHum">—%</span></div>
+    <div class="si"><span class="sl">WIND</span><span class="sv" id="wWind">— KM/H</span></div>
     <div class="hud-txt">ENGINE: GROQ 2.0<br>TIER: FREE<br>LIMIT: 1500/DAY<br>LOC: 20.16°S 57.49°E</div>
   </div>
 
@@ -569,12 +599,16 @@ const GITHUB_REPO = 'Excella';
 const GITHUB_BRANCH = 'main';
 
 // ── BROWSER WINDOW CONTROLS ──
-function winMin() { /* browsers can't minimize themselves; no-op */ }
+function winMin() {
+  if (window.excella) window.excella.winMin();
+}
 function winMax() {
+  if (window.excella) { window.excella.winMax(); return; }
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
   else document.exitFullscreen?.();
 }
 function winClose() {
+  if (window.excella) { window.excella.winClose(); return; }
   if (confirm('Close EXCELLA, Commander?')) window.close();
 }
 
@@ -627,6 +661,7 @@ async function bootLoad() {
     aiModel     = localStorage.getItem('ex_model')|| 'llama-3.3-70b-versatile';
   }
   applySettings();
+  setTimeout(() => { loadHistory(); checkAutoBriefing(); }, 4800);
 }
 bootLoad();
 
@@ -665,6 +700,29 @@ function closeSettings() {
 function toggleKeyVis() {
   keyVisible = !keyVisible;
   document.getElementById('apiKeyInput').type = keyVisible ? 'text' : 'password';
+}
+
+let _autoSaveTimer = null;
+function autoSaveKey(val) {
+  // Debounce — save 800ms after user stops typing
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(async () => {
+    const key = val.trim();
+    if (!key) return;
+    apiKey = key;
+    const payload = { groqKey: key, opName, personality, aiModel };
+    if (window.excella) {
+      await window.excella.saveSettings(payload);
+    } else {
+      localStorage.setItem('ex_key', key);
+    }
+    const ss = document.getElementById('saveStatus');
+    ss.style.opacity = '1';
+    ss.textContent = '✓ KEY AUTO-SAVED';
+    ss.className = 'save-status ok';
+    updateApiStatus();
+    setTimeout(() => { ss.style.opacity = '0'; }, 2000);
+  }, 800);
 }
 async function saveSettings() {
   const key  = document.getElementById('apiKeyInput').value.trim();
@@ -709,6 +767,7 @@ function clearHistory() {
   msgCount = 0;
   document.getElementById('msgCount').textContent = '0';
   document.getElementById('chatMsgs').innerHTML = '';
+  localStorage.removeItem('ex_chat_hist');
   addMsg('ex', `Chat history cleared, ${opName}. Memory wiped. Fresh session initialized.`);
   closeSettings();
 }
@@ -757,15 +816,24 @@ const sid='SN-'+Math.floor(Math.random()*900+100);
 document.getElementById('sessId').textContent=sid;
 document.getElementById('sessNotifBody').textContent=`Session ${sid} initialized.`;
 
-// ── NEURAL LOAD FLICKER ──
-setInterval(()=>{
-  const nl=Math.floor(60+Math.random()*24);
-  const mem=Math.floor(46+Math.random()*24);
-  document.getElementById('nlVal').textContent=nl+'%';
-  document.getElementById('nlBar').style.width=nl+'%';
-  document.getElementById('memVal').textContent=mem+'%';
-  document.getElementById('memBar').style.width=mem+'%';
-},3500);
+// ── REAL SYSTEM STATS ──
+async function pollSystemStats(){
+  if(!window.excella) return;
+  try{
+    const [info, cpu] = await Promise.all([
+      window.excella.getSystemInfo(),
+      window.excella.getCPU ? window.excella.getCPU() : Promise.resolve(0)
+    ]);
+    const memPct = Math.min(99, Math.round((1 - info.freeMem / info.totalMem) * 100));
+    const cpuPct = Math.min(99, cpu);
+    document.getElementById('nlVal').textContent = cpuPct+'%';
+    document.getElementById('nlBar').style.width  = cpuPct+'%';
+    document.getElementById('memVal').textContent = memPct+'%';
+    document.getElementById('memBar').style.width  = memPct+'%';
+  }catch{}
+}
+setInterval(pollSystemStats, 5000);
+pollSystemStats();
 
 // ── WAVEFORM ──
 const wf=document.getElementById('wf');
@@ -796,12 +864,150 @@ function setMode(el,mode){
 }
 
 // ── MIC ──
+let recognition = null;
+
+function initRecognition(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r = new SR();
+  r.continuous = true;
+  r.interimResults = false;
+  r.lang = 'en-US';
+  r.onresult = e => {
+    const transcript = e.results[e.results.length-1][0].transcript.trim();
+    if(transcript && e.results[e.results.length-1].isFinal){
+      stopSpeaking(); // stop Excella speaking when user talks
+      if(!executeVoiceCommand(transcript)){
+        const inp = document.getElementById('ci');
+        inp.value = transcript;
+        sendMsg();
+      }
+    }
+  };
+  r.onerror = e => {
+    if(e.error === 'not-allowed'){
+      addMsg('ex', `Microphone access was denied, ${opName}. Click the lock icon in the address bar and allow microphone, then try again.`);
+      stopMic();
+    } else if(e.error === 'network'){
+      // Transient network error — silently retry once
+      stopMic();
+      setTimeout(() => {
+        if(!micActive){
+          micActive = true;
+          const b = document.getElementById('micBtn');
+          b.classList.add('on');
+          b.textContent = '🔴';
+          document.getElementById('ci').placeholder = `● Listening, ${opName}...`;
+          recognition = initRecognition();
+          if(recognition) recognition.start();
+        }
+      }, 400);
+    } else if(e.error !== 'no-speech' && e.error !== 'aborted'){
+      addMsg('ex', `Voice recognition error: <strong>${e.error}</strong>. Try again, ${opName}.`);
+      stopMic();
+    } else {
+      stopMic();
+    }
+  };
+  r.onend = () => {
+    // Restart if still active (continuous listening)
+    if(micActive){ try{ r.start(); }catch(e){} }
+  };
+  return r;
+}
+
+// ── VOICE COMMAND EXECUTOR ──
+function executeVoiceCommand(text){
+  const t = text.toLowerCase().trim();
+
+  // ── PC APP LAUNCHER ──
+  const appMatch = t.match(/^(?:open|launch|start)\s+(.+)$/);
+  if(appMatch && window.excella){
+    const appName = appMatch[1].trim();
+    window.excella.runApp(appName).then(r => {
+      if(r.ok) addMsg('ex', `Launching <strong>${appName}</strong>, ${opName}.`);
+      else addMsg('ex', `I don't have <strong>${appName}</strong> in my app list, ${opName}. Try: Chrome, Notepad, Calculator, Spotify, Discord, Explorer, VS Code, Teams, Edge, Paint, Word, Excel, PowerPoint.`);
+    });
+    return true;
+  }
+
+  // ── VOLUME ──
+  if(/volume up|turn up|louder/.test(t) && window.excella){ window.excella.systemControl('volume-up'); addMsg('ex',`Volume increased, ${opName}.`); return true; }
+  if(/volume down|turn down|quieter|lower volume/.test(t) && window.excella){ window.excella.systemControl('volume-down'); addMsg('ex',`Volume decreased, ${opName}.`); return true; }
+  if(/\bmute\b|silence/.test(t) && window.excella){ window.excella.systemControl('mute'); addMsg('ex',`Audio muted, ${opName}.`); return true; }
+
+  // ── SYSTEM ACTIONS ──
+  if(/lock (screen|pc|computer)|lock my pc/.test(t) && window.excella){ window.excella.systemControl('lock'); addMsg('ex',`Locking workstation, ${opName}. Stand by.`); return true; }
+  if(/take (a )?screenshot|capture screen/.test(t) && window.excella){ window.excella.systemControl('screenshot'); addMsg('ex',`Screenshot captured, ${opName}.`); return true; }
+  if(/sleep (mode)?|put (pc|computer) to sleep/.test(t) && window.excella){ addMsg('ex',`Initiating sleep mode, ${opName}.`); setTimeout(()=>window.excella.systemControl('sleep'),2000); return true; }
+  if(/shut ?down|power off/.test(t) && window.excella){ addMsg('ex',`Shutdown initiated in 30 seconds, ${opName}. Say <strong>"cancel shutdown"</strong> to abort.`); window.excella.systemControl('shutdown'); return true; }
+  if(/restart|reboot/.test(t) && window.excella){ addMsg('ex',`Restarting in 30 seconds, ${opName}. Say <strong>"cancel shutdown"</strong> to abort.`); window.excella.systemControl('restart'); return true; }
+  if(/cancel (shut ?down|restart|reboot)/.test(t) && window.excella){ window.excella.systemControl('cancel-shutdown'); addMsg('ex',`Shutdown cancelled, ${opName}. Systems remain online.`); return true; }
+
+  // ── SYSTEM INFO ──
+  if(/system info|system specs|pc info|hardware info/.test(t) && window.excella){
+    window.excella.getSystemInfo().then(info => {
+      addMsg('ex', `<strong>SYSTEM REPORT</strong><br>
+Host: <strong>${info.hostname}</strong> · User: <strong>${info.username}</strong><br>
+CPU: <strong>${info.cpuModel}</strong> (${info.cpus} cores)<br>
+RAM: <strong>${info.freeMem}GB free</strong> / ${info.totalMem}GB total<br>
+OS Uptime: <strong>${info.uptime} min</strong>`);
+    });
+    return true;
+  }
+
+  // ── UI COMMANDS ──
+  if(/open settings|settings|configure|setup/.test(t)){ openSettings(); addMsg('ex',`Opening settings panel, ${opName}.`); return true; }
+  if(/close settings|exit settings/.test(t)){ closeSettings(); addMsg('ex',`Settings closed, ${opName}.`); return true; }
+  if(/clear (chat|history|messages?)|wipe memory|reset chat/.test(t)){ clearHistory(); return true; }
+  if(/minimise|minimize/.test(t)){ winMin(); addMsg('ex',`Minimizing, ${opName}.`); return true; }
+  if(/close excella|exit excella|shut down excella/.test(t)){ addMsg('ex',`Goodbye, ${opName}.`); setTimeout(winClose, 1500); return true; }
+
+  // ── MODE SWITCHING ──
+  if(/standard mode|switch to standard/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[0],'STANDARD'); return true; }
+  if(/focus(ed)? mode|switch to focus/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[1],'FOCUSED'); return true; }
+  if(/creative mode|switch to creative/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[2],'CREATIVE'); return true; }
+  if(/tactical mode|switch to tactical/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[3],'TACTICAL'); return true; }
+  if(/stealth mode|switch to stealth/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[4],'STEALTH'); return true; }
+  if(/analysis mode|switch to analysis/.test(t)){ const els=document.querySelectorAll('.mc'); setMode(els[5],'ANALYSIS'); return true; }
+
+  // ── QUICK AI PROMPTS ──
+  if(/morning briefing|daily briefing|briefing/.test(t)){ document.getElementById('ci').value='Give me my morning briefing — priorities, key tasks, and what I should focus on today.'; sendMsg(); return true; }
+  if(/system status|status report/.test(t)){ document.getElementById('ci').value='Give me a full system and operational status report.'; sendMsg(); return true; }
+  if(/intel report|intelligence report/.test(t)){ document.getElementById('ci').value='Give me a tactical intelligence summary on current events and opportunities.'; sendMsg(); return true; }
+  if(/strategy session|strategic plan/.test(t)){ document.getElementById('ci').value='Help me create a strategic plan and prioritize objectives.'; sendMsg(); return true; }
+  if(/idea(s)?|brainstorm/.test(t)){ document.getElementById('ci').value='Generate creative ideas and innovative approaches for my current goals.'; sendMsg(); return true; }
+
+  // Not a local command — send to AI
+  return false;
+}
+
+function stopMic(){
+  micActive = false;
+  const b = document.getElementById('micBtn');
+  b.classList.remove('on');
+  b.textContent = '🎙';
+  document.getElementById('ci').placeholder = `Speak your command, ${opName}...`;
+}
+
 function toggleMic(){
-  micActive=!micActive;
-  const b=document.getElementById('micBtn');
-  b.classList.toggle('on',micActive);
-  b.textContent=micActive?'🔴':'🎙';
-  document.getElementById('ci').placeholder=micActive?`● Listening, ${opName}...`:`Speak your command, ${opName}...`;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    addMsg('ex', `Voice recognition is not supported in this browser, ${opName}. Try Chrome or Edge.`);
+    return;
+  }
+  if(micActive){
+    if(recognition){ recognition.abort(); }
+    stopMic();
+    return;
+  }
+  micActive = true;
+  const b = document.getElementById('micBtn');
+  b.classList.add('on');
+  b.textContent = '🔴';
+  document.getElementById('ci').placeholder = `● Listening, ${opName}...`;
+  recognition = initRecognition();
+  if(recognition){ recognition.start(); }
 }
 
 // ── QUICK PROMPTS ──
@@ -810,6 +1016,21 @@ function q(t){document.getElementById('ci').value=t;document.getElementById('ci'
 // ── CHAT ──
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,86)+'px';}
+
+// ── STREAMING CHAT ──
+let _streamCount = 0;
+function addStreamingMsg(){
+  const msgs = document.getElementById('chatMsgs');
+  const d = document.createElement('div');
+  d.className = 'msg ex';
+  const n = new Date();
+  const ts = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+  const id = 'sb'+ (_streamCount++);
+  d.innerHTML = `<div class="mav">EX</div><div class="mbub"><div class="mmeta">EXCELLA · ${ts} · LIVE</div><div class="stream-body" id="${id}"><span class="cur-blink"></span></div></div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+  return document.getElementById(id);
+}
 
 async function sendMsg(){
   const inp=document.getElementById('ci');
@@ -821,9 +1042,8 @@ async function sendMsg(){
   inp.value='';inp.style.height='auto';
   msgCount++;
   document.getElementById('msgCount').textContent=msgCount;
-
-  // Update activity chart live
   updateChart();
+  saveHistory();
 
   if(!navigator.onLine){
     showBanner('⚠ OFFLINE — AI unavailable. Check connection.','off');
@@ -837,53 +1057,69 @@ async function sendMsg(){
     return;
   }
 
-  const tid=addTyping();
+  const recentHistory = chatHistory.slice(-20);
+  const bodyEl = addStreamingMsg();
+  const msgs = document.getElementById('chatMsgs');
 
-  try {
-    let reply;
+  const finalize = (text) => {
+    bodyEl.innerHTML = text.replace(/\n/g,'<br>');
+    chatHistory.push({role:'assistant',content:text});
+    saveHistory();
+    stopSpeaking();
+    speak(text);
+    msgs.scrollTop = msgs.scrollHeight;
+  };
 
-    // Keep last 10 exchanges for context (memory)
-    const recentHistory = chatHistory.slice(-20);
+  // ── ELECTRON: IPC streaming ──
+  if(window.excella?.chatStream){
+    let full='';
+    window.excella.offChatChunk?.();
+    window.excella.onChatChunk?.(data=>{
+      if(data.token){
+        full+=data.token;
+        bodyEl.innerHTML=full.replace(/\n/g,'<br>')+'<span class="cur-blink"></span>';
+        msgs.scrollTop=msgs.scrollHeight;
+      }
+      if(data.done){ window.excella.offChatChunk?.(); finalize(full); }
+      if(data.error){ window.excella.offChatChunk?.(); bodyEl.innerHTML=`⚠ Neural relay error: ${data.error}`; }
+    });
+    window.excella.chatStream({apiKey, messages:recentHistory, systemPrompt:getSystemPrompt(), model:aiModel});
+    return;
+  }
 
-    if(window.excella && window.excella.chat){
-      // Electron IPC (desktop app)
-      const res = await window.excella.chat({
-        apiKey,
-        messages: recentHistory,
-        systemPrompt: getSystemPrompt(),
-        model: aiModel
-      });
-      reply = parseGroqResponse(res);
-    } else {
-      // Browser fallback (direct API)
-      const groqMessages = [
-        { role: 'system', content: getSystemPrompt() },
-        ...recentHistory.map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}))
-      ];
-      const res = await fetch(`https://api.groq.com/openai/v1/chat/completions`,{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Authorization':`Bearer ${apiKey}`
-        },
-        body:JSON.stringify({
-          model: aiModel,
-          messages: groqMessages,
-          max_tokens: 1024,
-          temperature: 0.9
-        })
-      });
-      const data = await res.json();
-      reply = parseGroqResponse(data);
+  // ── BROWSER: SSE streaming via fetch ──
+  try{
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({
+        model:aiModel,
+        messages:[{role:'system',content:getSystemPrompt()},...recentHistory.map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}))],
+        max_tokens:1024,temperature:0.9,stream:true
+      })
+    });
+    if(!res.ok){
+      const e=await res.json().catch(()=>({}));
+      bodyEl.innerHTML=`API Error: ${e.error?.message||res.status}. Check your key in Settings.`;
+      return;
     }
-
-    removeTyping(tid);
-    chatHistory.push({role:'assistant',content:reply});
-    addMsg('ex',reply);
-
-  } catch(err){
-    removeTyping(tid);
-    addMsg('ex',`Neural relay error, ${opName}. Groq uplink interrupted. Check your API key and connection, then retry.`);
+    const reader=res.body.getReader();const dec=new TextDecoder();let buf='',full='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');buf=lines.pop()||'';
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        const raw=line.slice(6).trim();if(raw==='[DONE]')break;
+        try{
+          const tok=JSON.parse(raw).choices?.[0]?.delta?.content;
+          if(tok){full+=tok;bodyEl.innerHTML=full.replace(/\n/g,'<br>')+'<span class="cur-blink"></span>';msgs.scrollTop=msgs.scrollHeight;}
+        }catch{}
+      }
+    }
+    finalize(full);
+  }catch(err){
+    bodyEl.innerHTML=`Neural relay error, ${opName}. Check your API key and connection.`;
     console.error(err);
   }
 }
@@ -897,7 +1133,45 @@ function parseGroqResponse(data){
   }
 }
 
-function addMsg(who,html){
+// ── TEXT-TO-SPEECH ──
+let ttsEnabled = true;
+let ttsSpeaking = false;
+const ttsQueue = [];
+
+function speak(text){
+  if(!ttsEnabled || !window.speechSynthesis) return;
+  // Strip HTML tags for clean speech
+  const clean = text.replace(/<br\s*\/?>/gi,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').trim();
+  if(!clean) return;
+  ttsQueue.push(clean);
+  if(!ttsSpeaking) processQueue();
+}
+
+function processQueue(){
+  if(!ttsQueue.length){ ttsSpeaking=false; return; }
+  ttsSpeaking = true;
+  const utt = new SpeechSynthesisUtterance(ttsQueue.shift());
+  utt.rate  = 1.0;
+  utt.pitch = 1.0;
+  utt.volume = 1.0;
+  // Pick a good voice if available
+  const voices = speechSynthesis.getVoices();
+  const preferred = voices.find(v=>/zira|david|mark|google uk|google us/i.test(v.name))
+                 || voices.find(v=>v.lang==='en-US')
+                 || voices[0];
+  if(preferred) utt.voice = preferred;
+  utt.onend = () => processQueue();
+  utt.onerror = () => { ttsSpeaking=false; };
+  speechSynthesis.speak(utt);
+}
+
+function stopSpeaking(){
+  speechSynthesis.cancel();
+  ttsQueue.length = 0;
+  ttsSpeaking = false;
+}
+
+function addMsg(who, html, silent=false){
   const msgs=document.getElementById('chatMsgs');
   const d=document.createElement('div');
   d.className=`msg ${who==='ex'?'ex':'u'}`;
@@ -907,6 +1181,7 @@ function addMsg(who,html){
     <div class="mbub"><div class="mmeta">${who==='ex'?'EXCELLA':opName.toUpperCase()} · ${ts}</div>${html}</div>`;
   msgs.appendChild(d);
   msgs.scrollTop=msgs.scrollHeight;
+  if(who==='ex' && !silent) speak(html);
 }
 
 let tc=0;
@@ -950,9 +1225,138 @@ function updateChart(){
 // ── BOOT ──
 setTimeout(()=>{document.getElementById('boot').style.display='none';},3700);
 
+// ── WEATHER (Open-Meteo, Port Louis MU) ──
+const WMO_TXT={0:'CLEAR SKIES',1:'MAINLY CLEAR',2:'PARTLY CLOUDY',3:'OVERCAST',45:'FOG',48:'RIME FOG',51:'LIGHT DRIZZLE',53:'DRIZZLE',55:'HEAVY DRIZZLE',61:'LIGHT RAIN',63:'RAIN',65:'HEAVY RAIN',71:'SNOW',80:'SHOWERS',81:'SHOWERS',82:'VIOLENT SHOWERS',95:'THUNDERSTORM',96:'THUNDERSTORM',99:'THUNDERSTORM+HAIL'};
+const WMO_ICO={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌧',55:'⛈️',61:'🌦',63:'🌧',65:'⛈️',71:'❄️',80:'🌧',82:'⛈️',95:'⛈️',99:'🌩'};
+async function fetchWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=-20.1609&longitude=57.4977&current=temperature_2m,weathercode,wind_speed_10m,relative_humidity_2m&wind_speed_unit=kmh&timezone=Indian%2FMauritius');
+    const d=await r.json();const c=d.current;
+    document.getElementById('wTemp').textContent=Math.round(c.temperature_2m)+'°C';
+    document.getElementById('wHum').textContent=c.relative_humidity_2m+'%';
+    document.getElementById('wWind').textContent=Math.round(c.wind_speed_10m)+' KM/H';
+    document.getElementById('wCond').textContent=WMO_TXT[c.weathercode]||'UNKNOWN';
+    document.getElementById('wIcon').textContent=WMO_ICO[c.weathercode]||'🌡';
+  }catch{}
+}
+fetchWeather();
+setInterval(fetchWeather,600000);
+
+// ── CLIPBOARD ANALYZE ──
+async function analyzeClipboard(){
+  let text='';
+  try{
+    if(window.excella?.getClipboard) text=await window.excella.getClipboard();
+    else text=await navigator.clipboard.readText();
+  }catch{addMsg('ex',`Clipboard access denied, ${opName}. Please allow clipboard permissions.`);return;}
+  if(!text.trim()){addMsg('ex',`Clipboard is empty, ${opName}.`);return;}
+  document.getElementById('ci').value='Analyze this for me:\n'+text.trim().slice(0,2000);
+  sendMsg();
+}
+
+// ── WAKE WORD (“Hey Excella”) ──
+let _alwaysRec=null, _alwaysOn=false;
+function toggleAlwaysListen(){
+  const btn=document.getElementById('wakeBtn');
+  if(_alwaysOn){
+    _alwaysOn=false;
+    if(_alwaysRec){try{_alwaysRec.abort();}catch{}_alwaysRec=null;}
+    btn.classList.remove('on');btn.textContent='👁';
+    addMsg('ex',`Wake word deactivated, ${opName}.`,true);
+  } else {
+    _alwaysOn=true;
+    btn.classList.add('on');btn.textContent='🔵';
+    _startAlwaysListen();
+    addMsg('ex',`Always-on mode active, ${opName}. Say <strong>“Hey Excella”</strong> to activate me hands-free.`);
+  }
+}
+function _startAlwaysListen(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR||!_alwaysOn)return;
+  const r=new SR();
+  r.continuous=true;r.interimResults=true;r.lang='en-US';
+  r.onresult=e=>{
+    const last=e.results[e.results.length-1];
+    if(last.isFinal){
+      const t=last[0].transcript.trim().toLowerCase();
+      const m=t.match(/hey\s+excel+a[,\s]*(.*)/);
+      if(m){
+        const query=m[1].trim();
+        speak(`Yes, ${opName}?`);
+        if(query){setTimeout(()=>{document.getElementById('ci').value=query;sendMsg();},300);}
+        else{addMsg('ex',`Yes, ${opName}? I’m listening. Type or use the mic.`);}
+      }
+    }
+  };
+  r.onerror=()=>{};
+  r.onend=()=>{if(_alwaysOn){try{r.start();}catch{}}};
+  try{r.start();}catch{}
+  _alwaysRec=r;
+}
+
+// ── PERSISTENT CHAT HISTORY ──
+const HIST_KEY='ex_chat_hist';
+function saveHistory(){
+  try{localStorage.setItem(HIST_KEY,JSON.stringify(chatHistory.slice(-40)));}catch{}
+}
+function loadHistory(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(HIST_KEY)||'[]');
+    if(saved.length>0){
+      chatHistory=saved;
+      addMsg('ex',`Memory cores restored, ${opName}. I recall <strong>${saved.length}</strong> exchanges from our previous session.`);
+    }
+  }catch{}
+}
+
+// ── TODO / MISSION QUEUE ──
+const TODO_KEY='ex_todos';
+let todos=[];
+try{todos=JSON.parse(localStorage.getItem(TODO_KEY)||'[]');}catch{}
+function renderTodos(){
+  const list=document.getElementById('todoList');if(!list)return;
+  const active=todos.filter(t=>!t.done).length;
+  document.getElementById('todoCount').textContent=active||todos.length||'0';
+  list.innerHTML='';
+  todos.forEach((t,i)=>{
+    const d=document.createElement('div');d.className='todo-item';
+    d.innerHTML=`<input type="checkbox" class="todo-cb" ${t.done?'checked':''} onchange="toggleTodo(${i})"><span class="todo-txt" style="${t.done?'text-decoration:line-through;opacity:.38':'}">${t.text.replace(/</g,'&lt;')}</span><button class="todo-del" onclick="deleteTodo(${i})">&#x2715;</button>`;
+    list.appendChild(d);
+  });
+}
+function addTodo(){
+  const inp=document.getElementById('todoInp');const txt=inp.value.trim();
+  if(!txt)return;
+  todos.unshift({text:txt,done:false,ts:Date.now()});
+  localStorage.setItem(TODO_KEY,JSON.stringify(todos));inp.value='';renderTodos();
+}
+function toggleTodo(i){todos[i].done=!todos[i].done;localStorage.setItem(TODO_KEY,JSON.stringify(todos));renderTodos();}
+function deleteTodo(i){todos.splice(i,1);localStorage.setItem(TODO_KEY,JSON.stringify(todos));renderTodos();}
+renderTodos();
+
+// ── AUTO MORNING BRIEFING ──
+function checkAutoBriefing(){
+  const today=new Date().toDateString();
+  const h=new Date().getHours();
+  if(localStorage.getItem('ex_briefed')!==today&&h>=6&&h<13&&apiKey){
+    localStorage.setItem('ex_briefed',today);
+    setTimeout(()=>{
+      document.getElementById('ci').value=`Good morning, ${opName}. Please give me a sharp morning briefing: one key strategic priority for today, one useful insight, and a quick motivational thought. Keep it concise.`;
+      sendMsg();
+    },5500);
+  }
+}
+
+// ── GLOBAL HOTKEY (Ctrl+Shift+E) ──
+if(window.excella?.onHotkey){
+  window.excella.onHotkey(()=>{
+    document.getElementById('ci').focus();
+    addMsg('ex',`System activated via hotkey, ${opName}. I’m ready. What do you need?`);
+  });
+}
+
 // ── AUTO-UPDATE CHECK ON LAUNCH ──
 setTimeout(checkForUpdates, 4000);
-// Re-check every 30 minutes
 setInterval(checkForUpdates, 30 * 60 * 1000);
 </script>
 </body>
