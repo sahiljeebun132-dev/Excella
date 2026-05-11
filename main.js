@@ -43,10 +43,12 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Auto-start when PC boots
+  // Auto-start when PC boots (works in both dev and packaged mode)
   app.setLoginItemSettings({
     openAtLogin: true,
     name: 'EXCELLA',
+    path: process.execPath,
+    args: app.isPackaged ? [] : [path.resolve(process.argv[1])],
   });
   createWindow();
   // Global hotkey: Ctrl+Shift+E focuses EXCELLA from anywhere on the desktop
